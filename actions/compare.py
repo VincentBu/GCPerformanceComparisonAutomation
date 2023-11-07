@@ -70,5 +70,5 @@ def run_comparison(performance_root: os.PathLike, configuration_folder: os.PathL
         configuration_folder, 'Run.yaml'
     )
 
-    command = f'GC.Infrastructure.exe run –-configuration {run_yaml_path}'.split(' ')
+    command = f'GC.Infrastructure.exe run --configuration {run_yaml_path}'.split(' ')
     run_command_sync(command, cwd=infrastructure_root)
