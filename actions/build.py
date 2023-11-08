@@ -18,7 +18,7 @@ def build_runtime(runtime_root: os.PathLike, vcvars64_activation_path: os.PathLi
     p.communicate()
 
 
-def build_infrastructure(performance_root: os.PathLike):
+def build_Infrastructure(performance_root: os.PathLike):
     print('build Infrastructure')
 
     command = 'dotnet build -c Release'.split(' ')
