@@ -65,10 +65,12 @@ def run_comparison(performance_root: os.PathLike, configuration_folder: os.PathL
     infrastructure_root = os.path.join(
         performance_root, 'artifacts', 'bin', 'GC.Infrastructure','Release', 'net7.0'
     )
-
+    infrastructure_bin = os.path.join(
+        infrastructure_root, 'GC.Infrastructure.exe'
+    )
     run_yaml_path = os.path.join(
         configuration_folder, 'Run.yaml'
     )
 
-    command = f'GC.Infrastructure.exe run --configuration {run_yaml_path}'.split(' ')
+    command = f'{infrastructure_bin} run --configuration {run_yaml_path}'.split(' ')
     run_command_sync(command, cwd=infrastructure_root)

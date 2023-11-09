@@ -25,5 +25,5 @@ def download_performance(performance_root: os.PathLike) -> None:
 
 
 def install_tool() -> None:
-    command = 'dotnet tool install Microsoft.Crank.Controller --version "0.2.0-*" --global'.split(' ')
+    command = 'dotnet tool install Microsoft.Crank.Controller --version 0.2.0-* --global'.split(' ')
     run_command_sync(command)
