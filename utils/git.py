@@ -33,7 +33,7 @@ def git_clone(owner: str, repo: str, output: os.PathLike) -> None:
     assert get_repo(owner, repo)
     
     run_command_sync('git config --system core.longpaths true'.split(' '))
-    run_command_sync(f'git clone https://github.com/{owner}/{repo}.git output'.split(' '))
+    run_command_sync(f'git clone https://github.com/{owner}/{repo}.git {output}'.split(' '))
 
 
 def git_checkout(repo_folder: os.PathLike, commit_number: str) -> None:

@@ -36,7 +36,7 @@ def build_Infrastructure(performance_root: os.PathLike):
 
 
 def build_GCPerfSim(performance_root: os.PathLike):
-    print('build Infrastructure')
+    print('build GCPerfSim')
 
     command = 'dotnet build -c Release'.split(' ')
     gcperfsim_root = os.path.join(
@@ -52,7 +52,7 @@ def build_GCPerfSim(performance_root: os.PathLike):
 
 
 def build_Microbenchmarks(performance_root: os.PathLike):
-    print('build Infrastructure')
+    print('build Microbenchmarks')
 
     command = 'dotnet build -c Release'.split(' ')
     microbenchmarks_root = os.path.join(
