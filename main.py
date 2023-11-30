@@ -27,24 +27,31 @@ if __name__ == '__main__':
     )
 
     parser_test = subparsers.add_parser('test')
-    parser_build.add_argument(
+    parser_test.add_argument(
         '-n',
         '--name', 
         dest='test_name',
         choices=['gcperfsim', 'microbenchmark', 'aspnet']
     )
-    parser_build.add_argument(
+    parser_test.add_argument(
         '-s',
         '--scenario', 
         dest='scenario',
         type=str
     )
-
-    parser_build.add_argument(
+    parser_test.add_argument(
         '-l',
         '--loops', 
         dest='loops',
         type=int
+    )
+
+    parser_analyze = subparsers.add_parser('analyze')
+    parser_analyze.add_argument(
+        '-d',
+        '--directory', 
+        dest='result_root',
+        type=str
     )
 
     args = parser.parse_args()
@@ -139,6 +146,11 @@ if __name__ == '__main__':
                     compare.generate_configuration(configuration_folder, 
                                                 output_folder,performance_root, runtime_baseline_root, runtime_target_root)
                     compare.run_comparison(performance_root, configuration_folder)
+
+        case 'analyze':
+            from actions import analysis
+            result_root = args.result_root
+            analysis.summarize_gcperfsim_result(result_root)
 
         case 'clean':
             from actions import clean

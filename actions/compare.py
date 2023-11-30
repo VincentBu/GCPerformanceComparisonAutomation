@@ -94,7 +94,8 @@ def generate_gcperfsim_configuration(
 
     with open(configuration_path, 'r') as f:
         config_yaml = yaml.load(f, yaml.Loader)
-        for run_name in config_yaml['runs'].keys():
+        runs = list(config_yaml['runs'].keys()).copy()
+        for run_name in runs:
             if run_name != scenario: config_yaml['runs'].pop(run_name)
 
         configuration_base_name, ext_name = os.path.splitext(os.path.basename(configuration_path))
