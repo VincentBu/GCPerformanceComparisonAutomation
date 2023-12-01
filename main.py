@@ -31,12 +31,12 @@ if __name__ == '__main__':
         '-n',
         '--name', 
         dest='test_name',
-        choices=['gcperfsim', 'microbenchmark', 'aspnet']
+        choices=['gcperfsim', 'microbenchmark', 'aspnetbenchmark']
     )
     parser_test.add_argument(
         '-s',
-        '--scenario', 
-        dest='scenario',
+        '--subset', 
+        dest='subset',
         type=str
     )
     parser_test.add_argument(
@@ -48,9 +48,15 @@ if __name__ == '__main__':
 
     parser_analyze = subparsers.add_parser('analyze')
     parser_analyze.add_argument(
+        '-n',
+        '--name', 
+        dest='test_name',
+        choices=['gcperfsim', 'microbenchmark', 'aspnetbenchmark']
+    )
+    parser_analyze.add_argument(
         '-d',
         '--directory', 
-        dest='result_root',
+        dest='output_root',
         type=str
     )
 
@@ -115,7 +121,7 @@ if __name__ == '__main__':
                 case 'gcperfsim':
                     test_name = args.test_name
                     loops = args.loops
-                    scenario =args.scenario
+                    subset =args.subset
 
                     gcperfsim_configuration_path = os.path.join(
                         config.test_bed, 
@@ -130,18 +136,71 @@ if __name__ == '__main__':
                         'Outputs', 
                         comparison_name, 
                         'GCPerfSim',
-                        f'GCPerfSim_{scenario}')
+                        f'GCPerfSim_{subset}')
                     compare.generate_gcperfsim_configuration(
                         gcperfsim_configuration_path,
                         gcperfsim_output_root,
-                        loops,
-                        scenario
+                        subset,
+                        loops
                     )
                     compare.compare_gcperfsim(
                         performance_root,
                         gcperfsim_output_root,
                         loops
                     )
+                case 'microbenchmark':
+                    test_name = args.test_name
+                    loops = args.loops
+                    subset =args.subset
+
+                    microbenchmark_configuration_path = ''
+                    microbenchmark_output_root = ''
+                    
+                    if subset == 'server':
+                        microbenchmark_configuration_path = os.path.join(
+                            config.test_bed, 
+                            'Outputs', 
+                            comparison_name, 
+                            'Suites',
+                            'Microbenchmark',
+                            'Microbenchmarks_Server.yaml')
+                        
+                        microbenchmark_output_root = os.path.join(
+                            config.test_bed, 
+                            'Outputs', 
+                            comparison_name, 
+                            'Microbenchmarks',
+                            'Server')
+                    elif subset == 'workstation':
+                        microbenchmark_configuration_path = os.path.join(
+                            config.test_bed, 
+                            'Outputs', 
+                            comparison_name, 
+                            'Suites',
+                            'Microbenchmark',
+                            'Microbenchmarks_Workstation.yaml')
+                        
+                        microbenchmark_output_root = os.path.join(
+                            config.test_bed, 
+                            'Outputs', 
+                            comparison_name, 
+                            'Microbenchmarks',
+                            'Workstation')
+                    else:
+                        microbenchmark_configuration_path = ''
+                        microbenchmark_output_root = ''
+                    
+                    compare.generate_microbenchmarks_configuration(
+                        microbenchmark_configuration_path,
+                        microbenchmark_output_root,
+                        subset,
+                        loops)
+                    compare.compare_microbenchmarks(
+                        performance_root,
+                        microbenchmark_output_root,
+                        loops
+                    )
+                    
                 case None:
                     compare.generate_configuration(configuration_folder, 
                                                 output_folder,performance_root, runtime_baseline_root, runtime_target_root)
@@ -149,8 +208,9 @@ if __name__ == '__main__':
 
         case 'analyze':
             from actions import analysis
-            result_root = args.result_root
-            analysis.summarize_gcperfsim_result(result_root)
+            test_name = args.test_name
+            output_root = args.output_root
+            analysis.summarize_result(test_name, output_root)
 
         case 'clean':
             from actions import clean

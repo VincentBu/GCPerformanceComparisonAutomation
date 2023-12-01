@@ -29,13 +29,18 @@ def extract_tables_and_tiltes_from_markdown(markdown_file_path: os.PathLike):
     return tables
 
 
-def summarize_gcperfsim_result(output_root: os.PathLike):
+def summarize_result(test_name: str, output_root: os.PathLike):
     large_regressions_sum = dict()
     large_improvements_sum = dict()
     regressions_sum = dict()
     improvements_sum = dict()
 
     result_root = os.path.join(output_root, 'result')
+
+    if test_name == 'gcperfsim': key = 'Metric'
+    elif test_name == 'microbenchmark': key = 'Benchmark Name'
+    else: key = ''
+
     for dirname in os.listdir(result_root):
         result_dir = os.path.join(result_root, dirname)
         result_markdown_path = os.path.join(result_dir, 'Results.md')
@@ -43,7 +48,7 @@ def summarize_gcperfsim_result(output_root: os.PathLike):
 
         # summarize 'Large Regressions'
         large_regressions_test_name_list = map(
-            lambda test: test['Metric'],
+            lambda test: test[key],
             tables['Large Regressions']
         )
         for large_regressions_test_name in large_regressions_test_name_list:
@@ -54,7 +59,7 @@ def summarize_gcperfsim_result(output_root: os.PathLike):
 
         # summarize 'Large Improvements'
         large_improvements_test_name_list = map(
-            lambda test: test['Metric'],
+            lambda test: test[key],
             tables['Large Improvements']
         )
         for large_improvements_test_name in large_improvements_test_name_list:
@@ -65,7 +70,7 @@ def summarize_gcperfsim_result(output_root: os.PathLike):
         
         # summarize 'Regressions'
         regressions_test_name_list = map(
-            lambda test: test['Metric'],
+            lambda test: test[key],
             tables['Regressions']
         )
         for regressions_test_name in regressions_test_name_list:
@@ -76,7 +81,7 @@ def summarize_gcperfsim_result(output_root: os.PathLike):
 
         # summarize 'Improvements'
         improvements_test_name_list = map(
-            lambda test: test['Metric'],
+            lambda test: test[key],
             tables['Improvements']
         )
         for improvements_test_name in improvements_test_name_list:
