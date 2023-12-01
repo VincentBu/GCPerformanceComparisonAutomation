@@ -193,7 +193,6 @@ if __name__ == '__main__':
                     compare.generate_microbenchmarks_configuration(
                         microbenchmark_configuration_path,
                         microbenchmark_output_root,
-                        subset,
                         loops)
                     compare.compare_microbenchmarks(
                         performance_root,

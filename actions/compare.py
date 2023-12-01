@@ -136,7 +136,6 @@ def compare_gcperfsim(
 def generate_microbenchmarks_configuration(
     configuration_path: os.PathLike,
     output_root: os.PathLike,
-    test_name: str,
     loops: int):
     print('generate microbenchmarks configuration')
     if not os.path.exists(output_root): os.makedirs(output_root)
@@ -154,9 +153,9 @@ def generate_microbenchmarks_configuration(
         for loop in range(loops):
             new_configuration_path = os.path.join(
                 new_configuration_root,
-                f'{configuration_base_name}_{test_name}_{loop+1}{ext_name}'
+                f'{configuration_base_name}_{loop+1}{ext_name}'
             )
-            new_result_path = os.path.join(new_result_root, f'{configuration_base_name}_{test_name}_{loop+1}')
+            new_result_path = os.path.join(new_result_root, f'{configuration_base_name}_{loop+1}')
             with open(new_configuration_path, 'w+') as f:
                 config_yaml['output']['path'] = new_result_path
                 yaml.dump(config_yaml, f, default_flow_style=False)
