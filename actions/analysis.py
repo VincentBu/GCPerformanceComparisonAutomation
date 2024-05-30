@@ -3,17 +3,46 @@ import json
 from io import StringIO
 
 import pandas as pd
+import numpy as np
 import markdown
 from markdown.extensions.tables import TableExtension
 
 
-TABLE_TITLE_LIST = [
-    'Large Regressions', 'Large Improvements', 
-    'Regressions', 'Improvements', 
-    'Stale Regressions', 'Stale Improvements'
+gcperfsim_run_list = [
+    'normal', 
+    'soh_pinning',
+    'poh',
+    'loh'
 ]
 
-def extract_tables_and_tiltes_from_markdown(markdown_file_path: os.PathLike):
+
+diff_level_list = [
+    'Large Regressions',
+    'Regressions',
+    'Stale Regressions',
+    'Stale Improvements',
+    'Improvements',
+    'Large Improvements'
+]
+
+
+def difference_level(n: np.float64):
+    if n > 20:
+        return 'Large Regressions'
+    if 20 >= n >=5:
+        return 'Regressions'
+    if 5 > n >=0:
+        return 'Stale Regressions'
+    
+    if -5 < n <= 0:
+        return 'Stale Improvements'
+    if -20 <= n <= -5:
+        return 'Improvements'
+    if n <= -20:
+        return 'Large Improvements'
+
+
+def extract_tables_from_markdown(markdown_file_path: os.PathLike):
     # Read the markdown file
     with open(markdown_file_path, 'r', encoding='utf-8') as file:
         markdown_text = file.read()
@@ -22,93 +51,111 @@ def extract_tables_and_tiltes_from_markdown(markdown_file_path: os.PathLike):
     tables_html = markdown.markdown(markdown_text, extensions=[TableExtension()])
 
     # Extract tables using Pandas
-    tables = dict()
-    for title, table in zip(TABLE_TITLE_LIST, pd.read_html(StringIO(tables_html))[-len(TABLE_TITLE_LIST):]):
-        tables[title] = json.loads(table.to_json(orient='records'))
-
+    tables = pd.read_html(StringIO(tables_html))
+    
     return tables
 
 
-def summarize_result(test_name: str, output_root: os.PathLike):
-    large_regressions_sum = dict()
-    large_improvements_sum = dict()
-    regressions_sum = dict()
-    improvements_sum = dict()
+def get_gcperfsim_result_table(tables: list[pd.DataFrame]):
+    titled_tables = dict()
 
-    result_root = os.path.join(output_root, 'result')
+    for gcperfsim_run in gcperfsim_run_list:
+        titled_tables[gcperfsim_run] = dict()
 
-    if test_name == 'gcperfsim': key = 'Metric'
-    elif test_name == 'microbenchmark': key = 'Benchmark Name'
-    else: key = ''
+        for table in tables:
+            #  ignore summary table
+            if gcperfsim_run not in table.columns:
+                continue
 
+            # ignore empty table
+            if not isinstance(table.values[0][0], str):
+                continue
+
+            delta_percentage = table.values[0][3]
+            diff_level = difference_level(delta_percentage)
+
+            titled_tables[gcperfsim_run][diff_level] = table.copy()
+
+    return titled_tables
+
+
+def summarize_gcperfsim_result(output_root: os.PathLike):
+    result_sum = dict()
+
+    result_root = os.path.join(output_root, 'Results')
     for dirname in os.listdir(result_root):
         result_dir = os.path.join(result_root, dirname)
         result_markdown_path = os.path.join(result_dir, 'Results.md')
-        tables = extract_tables_and_tiltes_from_markdown(result_markdown_path)
+        result_table_list = extract_tables_from_markdown(result_markdown_path)
 
-        # summarize 'Large Regressions'
-        large_regressions_test_name_list = map(
-            lambda test: test[key],
-            tables['Large Regressions']
-        )
-        for large_regressions_test_name in large_regressions_test_name_list:
-            if large_regressions_test_name not in large_regressions_sum.keys():
-                large_regressions_sum[large_regressions_test_name] = 1
-            else:
-                large_regressions_sum[large_regressions_test_name] += 1
+        gcperfsim_result_tables = get_gcperfsim_result_table(result_table_list)
 
-        # summarize 'Large Improvements'
-        large_improvements_test_name_list = map(
-            lambda test: test[key],
-            tables['Large Improvements']
-        )
-        for large_improvements_test_name in large_improvements_test_name_list:
-            if large_improvements_test_name not in large_improvements_sum.keys():
-                large_improvements_sum[large_improvements_test_name] = 1
-            else:
-                large_improvements_sum[large_improvements_test_name] += 1
-        
-        # summarize 'Regressions'
-        regressions_test_name_list = map(
-            lambda test: test[key],
-            tables['Regressions']
-        )
-        for regressions_test_name in regressions_test_name_list:
-            if regressions_test_name not in regressions_sum.keys():
-                regressions_sum[regressions_test_name] = 1
-            else:
-                regressions_sum[regressions_test_name] += 1
+        for gcperfsim_run in gcperfsim_run_list:
+            result_sum[gcperfsim_run] = dict()
+            for diff_level in diff_level_list:
+                result_sum[gcperfsim_run][diff_level] = dict()
+                if diff_level not in gcperfsim_result_tables[gcperfsim_run].keys():
+                    continue
+                for metric in gcperfsim_result_tables[gcperfsim_run][diff_level]['Metric']:
+                    if metric not in result_sum[gcperfsim_run][diff_level].keys():
+                        result_sum[gcperfsim_run][diff_level][metric] = 1
+                    else:
+                        result_sum[gcperfsim_run][diff_level][metric] += 1
 
-        # summarize 'Improvements'
-        improvements_test_name_list = map(
-            lambda test: test[key],
-            tables['Improvements']
-        )
-        for improvements_test_name in improvements_test_name_list:
-            if improvements_test_name not in improvements_sum.keys():
-                improvements_sum[improvements_test_name] = 1
-            else:
-                improvements_sum[improvements_test_name] += 1
+    for gcperfsim_run in gcperfsim_run_list:
+        summarize_root = os.path.join(output_root, 'summarize')
+        if not os.path.exists(summarize_root):
+            os.makedirs(summarize_root)
+
+        summarize_path = os.path.join(summarize_root, f'{gcperfsim_run}.json')
+        with open(summarize_path, 'w+') as fp:
+            json.dump(result_sum[gcperfsim_run], fp)    
+
+
+def get_microbenchmarks_result_table(tables: list[pd.DataFrame]):
+    titled_tables = dict()
+
+    for table in tables:
+        #  ignore summary table
+        if 'Benchmark Name' not in table.columns:
+            continue
+
+        # ignore empty table
+        if not isinstance(table.values[0][0], str):
+            continue
+
+        delta_percentage = table.values[0][6]
+        diff_level = difference_level(delta_percentage)
+
+        titled_tables[diff_level] = table.copy()
+
+    return titled_tables
+
+
+def summarize_microbenchmarks_result(output_root: os.PathLike):
+    result_sum = dict()
+
+    result_root = os.path.join(output_root, 'Results')
+    for dirname in os.listdir(result_root):
+        result_dir = os.path.join(result_root, dirname)
+        result_markdown_path = os.path.join(result_dir, 'Results.md')
+        result_table_list = extract_tables_from_markdown(result_markdown_path)
+        microbenchmarks_result_tables = get_microbenchmarks_result_table(result_table_list)
+
+        for diff_level in diff_level_list:
+            result_sum[diff_level] = dict()
+            if diff_level not in microbenchmarks_result_tables.keys():
+                continue
+            for benchmark in microbenchmarks_result_tables[diff_level]['Benchmark Name']:
+                if benchmark not in result_sum[diff_level].keys():
+                    result_sum[diff_level][benchmark] = 1
+                else:
+                    result_sum[diff_level][benchmark] += 1
 
     summarize_root = os.path.join(output_root, 'summarize')
-    if not os.path.exists(summarize_root): os.makedirs(summarize_root)
+    if not os.path.exists(summarize_root):
+        os.makedirs(summarize_root)
 
-    large_regressions_result_path = os.path.join(summarize_root, 'LargeRegressions.json')
-    if None in large_regressions_sum.keys(): large_regressions_sum.pop(None)
-    with open(large_regressions_result_path, 'w+') as fp:
-        json.dump(large_regressions_sum, fp)
-
-    large_improvements_result_path = os.path.join(summarize_root, 'LargeImprovements.json')
-    if None in large_improvements_sum.keys(): large_improvements_sum.pop(None)
-    with open(large_improvements_result_path, 'w+') as fp:
-        json.dump(large_improvements_sum, fp)
-
-    regressions_result_path = os.path.join(summarize_root, 'Regressions.json')
-    if None in regressions_sum.keys(): regressions_sum.pop(None)
-    with open(regressions_result_path, 'w+') as fp:
-        json.dump(regressions_sum, fp)
-
-    improvements_result_path = os.path.join(summarize_root, 'Improvements.json')
-    if None in improvements_sum.keys(): improvements_sum.pop(None)
-    with open(improvements_result_path, 'w+') as fp:
-        json.dump(improvements_sum, fp)
+    summarize_path = os.path.join(summarize_root, f'result.json')
+    with open(summarize_path, 'w+') as fp:
+        json.dump(result_sum, fp)    

@@ -1,4 +1,3 @@
 lxml
 pandas
 markdown
-pyyaml
