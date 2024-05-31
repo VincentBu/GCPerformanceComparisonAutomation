@@ -27,6 +27,12 @@ diff_level_list = [
 
 
 def difference_level(n: np.float64):
+    if isinstance(n, str):
+        if n == '∞':
+            return 'Large Regressions'
+        if n == '-∞':
+            return 'Large Improvements'
+    n = float(n)
     if n > 20:
         return 'Large Regressions'
     if 20 >= n >=5:
@@ -81,21 +87,23 @@ def get_gcperfsim_result_table(tables: list[pd.DataFrame]):
 
 def summarize_gcperfsim_result(output_root: os.PathLike):
     result_sum = dict()
-
     result_root = os.path.join(output_root, 'Results')
-    for dirname in os.listdir(result_root):
-        result_dir = os.path.join(result_root, dirname)
-        result_markdown_path = os.path.join(result_dir, 'Results.md')
-        result_table_list = extract_tables_from_markdown(result_markdown_path)
 
-        gcperfsim_result_tables = get_gcperfsim_result_table(result_table_list)
+    for gcperfsim_run in gcperfsim_run_list:
+        result_sum[gcperfsim_run] = dict()
+        for diff_level in diff_level_list:
+            result_sum[gcperfsim_run][diff_level] = dict()
+            
+            for dirname in os.listdir(result_root):
+                result_dir = os.path.join(result_root, dirname)
+                result_markdown_path = os.path.join(result_dir, 'Results.md')
+                result_table_list = extract_tables_from_markdown(result_markdown_path)
 
-        for gcperfsim_run in gcperfsim_run_list:
-            result_sum[gcperfsim_run] = dict()
-            for diff_level in diff_level_list:
-                result_sum[gcperfsim_run][diff_level] = dict()
+                gcperfsim_result_tables = get_gcperfsim_result_table(result_table_list)
+
                 if diff_level not in gcperfsim_result_tables[gcperfsim_run].keys():
                     continue
+
                 for metric in gcperfsim_result_tables[gcperfsim_run][diff_level]['Metric']:
                     if metric not in result_sum[gcperfsim_run][diff_level].keys():
                         result_sum[gcperfsim_run][diff_level][metric] = 1
@@ -143,7 +151,8 @@ def summarize_microbenchmarks_result(output_root: os.PathLike):
         microbenchmarks_result_tables = get_microbenchmarks_result_table(result_table_list)
 
         for diff_level in diff_level_list:
-            result_sum[diff_level] = dict()
+            if diff_level not in result_sum.keys():
+                result_sum[diff_level] = dict()
             if diff_level not in microbenchmarks_result_tables.keys():
                 continue
             for benchmark in microbenchmarks_result_tables[diff_level]['Benchmark Name']:
