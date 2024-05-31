@@ -17,35 +17,35 @@ gcperfsim_run_list = [
 
 
 diff_level_list = [
-    'Large Regressions',
+    'LargeRegressions',
     'Regressions',
-    'Stale Regressions',
-    'Stale Improvements',
+    'StaleRegressions',
+    'StaleImprovements',
     'Improvements',
-    'Large Improvements'
+    'LargeImprovements'
 ]
 
 
 def difference_level(n: np.float64):
     if isinstance(n, str):
         if n == '∞':
-            return 'Large Regressions'
+            return 'LargeRegressions'
         if n == '-∞':
-            return 'Large Improvements'
+            return 'LargeImprovements'
     n = float(n)
     if n > 20:
-        return 'Large Regressions'
+        return 'LargeRegressions'
     if 20 >= n >=5:
         return 'Regressions'
     if 5 > n >=0:
-        return 'Stale Regressions'
+        return 'StaleRegressions'
     
     if -5 < n <= 0:
-        return 'Stale Improvements'
+        return 'StaleImprovements'
     if -20 <= n <= -5:
         return 'Improvements'
     if n <= -20:
-        return 'Large Improvements'
+        return 'LargeImprovements'
 
 
 def extract_tables_from_markdown(markdown_file_path: os.PathLike):
@@ -88,19 +88,19 @@ def get_gcperfsim_result_table(tables: list[pd.DataFrame]):
 def summarize_gcperfsim_result(output_root: os.PathLike):
     result_sum = dict()
     result_root = os.path.join(output_root, 'Results')
+    for dirname in os.listdir(result_root):
+        result_dir = os.path.join(result_root, dirname)
+        result_markdown_path = os.path.join(result_dir, 'Results.md')
+        result_table_list = extract_tables_from_markdown(result_markdown_path)
+        gcperfsim_result_tables = get_gcperfsim_result_table(result_table_list)
 
-    for gcperfsim_run in gcperfsim_run_list:
-        result_sum[gcperfsim_run] = dict()
-        for diff_level in diff_level_list:
-            result_sum[gcperfsim_run][diff_level] = dict()
+        for gcperfsim_run in gcperfsim_run_list:
+            if gcperfsim_run not in result_sum.keys():
+                result_sum[gcperfsim_run] = dict()
+            for diff_level in diff_level_list:
+                if diff_level not in result_sum[gcperfsim_run].keys():
+                    result_sum[gcperfsim_run][diff_level] = dict()
             
-            for dirname in os.listdir(result_root):
-                result_dir = os.path.join(result_root, dirname)
-                result_markdown_path = os.path.join(result_dir, 'Results.md')
-                result_table_list = extract_tables_from_markdown(result_markdown_path)
-
-                gcperfsim_result_tables = get_gcperfsim_result_table(result_table_list)
-
                 if diff_level not in gcperfsim_result_tables[gcperfsim_run].keys():
                     continue
 
@@ -146,6 +146,36 @@ def summarize_microbenchmarks_result(output_root: os.PathLike):
     result_root = os.path.join(output_root, 'Results')
     for dirname in os.listdir(result_root):
         result_dir = os.path.join(result_root, dirname)
+        result_json_path = os.path.join(result_dir, 'Results.json')
+        with open(result_json_path, 'r') as fp:
+            result = json.load(fp)[0]
+
+        for diff_level in diff_level_list:
+            if diff_level not in result_sum.keys():
+                result_sum[diff_level] = dict()
+
+            for compare_result in result[diff_level]:
+                microbenchmark_name = compare_result['MicrobenchmarkName']
+                if microbenchmark_name not in result_sum[diff_level].keys():
+                    result_sum[diff_level][microbenchmark_name] = 1
+                else:
+                    result_sum[diff_level][microbenchmark_name] += 1
+
+    summarize_root = os.path.join(output_root, 'summarize')
+    if not os.path.exists(summarize_root):
+        os.makedirs(summarize_root)
+
+    summarize_path = os.path.join(summarize_root, f'result.json')
+    with open(summarize_path, 'w+') as fp:
+        json.dump(result_sum, fp)  
+
+'''
+def summarize_microbenchmarks_result(output_root: os.PathLike):
+    result_sum = dict()
+
+    result_root = os.path.join(output_root, 'Results')
+    for dirname in os.listdir(result_root):
+        result_dir = os.path.join(result_root, dirname)
         result_markdown_path = os.path.join(result_dir, 'Results.md')
         result_table_list = extract_tables_from_markdown(result_markdown_path)
         microbenchmarks_result_tables = get_microbenchmarks_result_table(result_table_list)
@@ -168,3 +198,4 @@ def summarize_microbenchmarks_result(output_root: os.PathLike):
     summarize_path = os.path.join(summarize_root, f'result.json')
     with open(summarize_path, 'w+') as fp:
         json.dump(result_sum, fp)    
+'''
