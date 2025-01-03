@@ -88,6 +88,7 @@ def get_gcperfsim_result_table(tables: list[pd.DataFrame]):
 def summarize_gcperfsim_result(output_root: os.PathLike):
     result_sum = dict()
     result_root = os.path.join(output_root, 'Results')
+
     for dirname in os.listdir(result_root):
         result_dir = os.path.join(result_root, dirname)
         result_markdown_path = os.path.join(result_dir, 'Results.md')
@@ -104,40 +105,45 @@ def summarize_gcperfsim_result(output_root: os.PathLike):
                 if diff_level not in gcperfsim_result_tables[gcperfsim_run].keys():
                     continue
 
-                for metric in gcperfsim_result_tables[gcperfsim_run][diff_level]['Metric']:
+                for metric_result in gcperfsim_result_tables[gcperfsim_run][diff_level].values:
+                    metric = metric_result[0]
                     if metric not in result_sum[gcperfsim_run][diff_level].keys():
-                        result_sum[gcperfsim_run][diff_level][metric] = 1
-                    else:
-                        result_sum[gcperfsim_run][diff_level][metric] += 1
+                        result_sum[gcperfsim_run][diff_level][metric] = dict()
+                        result_sum[gcperfsim_run][diff_level][metric]['Title'] = \
+                            gcperfsim_result_tables[gcperfsim_run][diff_level].columns.tolist()
+                        result_sum[gcperfsim_run][diff_level][metric]['Values'] = list()
+                    
+                    result_sum[gcperfsim_run][diff_level][metric]['Values'].append(metric_result.tolist())
+                    
+
+    summarize_root = os.path.join(output_root, 'summarize')
+    if not os.path.exists(summarize_root):
+        os.makedirs(summarize_root)
 
     for gcperfsim_run in gcperfsim_run_list:
-        summarize_root = os.path.join(output_root, 'summarize')
-        if not os.path.exists(summarize_root):
-            os.makedirs(summarize_root)
-
-        summarize_path = os.path.join(summarize_root, f'{gcperfsim_run}.json')
-        with open(summarize_path, 'w+') as fp:
-            json.dump(result_sum[gcperfsim_run], fp)    
-
-
-def get_microbenchmarks_result_table(tables: list[pd.DataFrame]):
-    titled_tables = dict()
-
-    for table in tables:
-        #  ignore summary table
-        if 'Benchmark Name' not in table.columns:
-            continue
-
-        # ignore empty table
-        if not isinstance(table.values[0][0], str):
-            continue
-
-        delta_percentage = table.values[0][6]
-        diff_level = difference_level(delta_percentage)
-
-        titled_tables[diff_level] = table.copy()
-
-    return titled_tables
+        summarize_path = os.path.join(summarize_root, f'{gcperfsim_run}.md')
+        summarize_table_string_lines = list()
+        
+        for diff_level in result_sum[gcperfsim_run].keys():
+            summarize_table_string_lines.append(f'# {diff_level}\n')
+            summarize_table_string_lines.append(
+                f'| Metric | Base | {gcperfsim_run} | \u0394% | \u0394 | Counts |\n')
+            summarize_table_string_lines.append(
+                f'| :------- | :------- | :------- | :-------: | :-------: | :-------: |\n')
+                
+            for metric in result_sum[gcperfsim_run][diff_level].keys():
+                metric_result = result_sum[gcperfsim_run][diff_level][metric]['Values'][0]
+                base = metric_result[1]
+                comparand = metric_result[2]
+                diff_perc = metric_result[3]
+                diff = metric_result[4]
+                counts = len(result_sum[gcperfsim_run][diff_level][metric]['Values'])
+                summarize_table_string_lines.append(
+                    f'| {metric} | {base} | {comparand} | {diff_perc} | {diff} | {counts} |\n')
+            
+            summarize_table_string_lines.append(f'\n\n')    
+        with open(summarize_path, 'w+', encoding='utf-8') as fd:
+            fd.writelines(summarize_table_string_lines)    
 
 
 def summarize_microbenchmarks_result(output_root: os.PathLike):
@@ -157,45 +163,56 @@ def summarize_microbenchmarks_result(output_root: os.PathLike):
             for compare_result in result[diff_level]:
                 microbenchmark_name = compare_result['MicrobenchmarkName']
                 if microbenchmark_name not in result_sum[diff_level].keys():
-                    result_sum[diff_level][microbenchmark_name] = 1
-                else:
-                    result_sum[diff_level][microbenchmark_name] += 1
+                    result_sum[diff_level][microbenchmark_name] = dict()
+                    result_sum[diff_level][microbenchmark_name]['Title'] = [
+                        'Benchmark Name',
+                        'Baseline',
+                        'Comparand',
+                        'Baseline Mean Duration (MSec)',
+                        'Comparand Mean Duration (MSec)',
+                        '\u0394 Mean Duration (MSec)',
+                        '\u0394% Mean Duration',
+                        'Counts',
+                    ]
+                    result_sum[diff_level][microbenchmark_name]['Values'] = list()
+                    
+                result_sum[diff_level][microbenchmark_name]['Values'].append([
+                    microbenchmark_name,
+                    compare_result['BaselineRunName'],
+                    compare_result['ComparandRunName'],
+                    compare_result['Baseline']['Statistics']['Mean'],
+                    compare_result['Comparand']['Statistics']['Mean'],
+                    compare_result['MeanDiff'],
+                    compare_result['MeanDiffPerc'],
+                ])
 
     summarize_root = os.path.join(output_root, 'summarize')
     if not os.path.exists(summarize_root):
         os.makedirs(summarize_root)
+        
+    summarize_table_string_lines = list()
+    for diff_level in result_sum.keys():
+        summarize_table_string_lines.append(f'# {diff_level}\n')
+        summarize_table_string_lines.append(
+            f'| Benchmark Name | Baseline | Comparand | Baseline Mean Duration (MSec) | Comparand Mean Duration (MSec) | \u0394 Mean Duration (MSec) | \u0394% Mean Duration | Counts |\n')
+        summarize_table_string_lines.append(
+            f'| :------- | :------- | :------- | -------: | -------: | -------: | -------: | :------- |\n')
+            
+        for microbenchmark_name in result_sum[diff_level].keys():
+            microbenchmark_result = result_sum[diff_level][microbenchmark_name]['Values'][0]
+            baseline_name = microbenchmark_result[1]
+            comparand_name = microbenchmark_result[2]
+            baseline_mean = '{:.2f}'.format(microbenchmark_result[3])
+            comparand_mean = '{:.2f}'.format(microbenchmark_result[4])
+            mean_diff = '{:.2f}'.format(microbenchmark_result[5])
+            mean_diff_perc = '{:.2f}'.format(microbenchmark_result[6])
+            counts = len(result_sum[diff_level][microbenchmark_name]['Values'])
+            full_microbenchmark_name = microbenchmark_name.replace('<', '\\<').replace('>', '\\>')
+            summarize_table_string_lines.append(
+                f'| {full_microbenchmark_name} | {baseline_name} | {comparand_name} | {baseline_mean} | {comparand_mean} | {mean_diff} | {mean_diff_perc} | {counts} |\n')
+        
+        summarize_table_string_lines.append(f'\n\n')    
 
-    summarize_path = os.path.join(summarize_root, f'result.json')
-    with open(summarize_path, 'w+') as fp:
-        json.dump(result_sum, fp)  
-
-'''
-def summarize_microbenchmarks_result(output_root: os.PathLike):
-    result_sum = dict()
-
-    result_root = os.path.join(output_root, 'Results')
-    for dirname in os.listdir(result_root):
-        result_dir = os.path.join(result_root, dirname)
-        result_markdown_path = os.path.join(result_dir, 'Results.md')
-        result_table_list = extract_tables_from_markdown(result_markdown_path)
-        microbenchmarks_result_tables = get_microbenchmarks_result_table(result_table_list)
-
-        for diff_level in diff_level_list:
-            if diff_level not in result_sum.keys():
-                result_sum[diff_level] = dict()
-            if diff_level not in microbenchmarks_result_tables.keys():
-                continue
-            for benchmark in microbenchmarks_result_tables[diff_level]['Benchmark Name']:
-                if benchmark not in result_sum[diff_level].keys():
-                    result_sum[diff_level][benchmark] = 1
-                else:
-                    result_sum[diff_level][benchmark] += 1
-
-    summarize_root = os.path.join(output_root, 'summarize')
-    if not os.path.exists(summarize_root):
-        os.makedirs(summarize_root)
-
-    summarize_path = os.path.join(summarize_root, f'result.json')
-    with open(summarize_path, 'w+') as fp:
-        json.dump(result_sum, fp)    
-'''
+    summarize_path = os.path.join(summarize_root, f'result.md')
+    with open(summarize_path, 'w+', encoding='utf-8') as fd:
+        fd.writelines(summarize_table_string_lines)   
